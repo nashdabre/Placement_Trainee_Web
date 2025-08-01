@@ -2,6 +2,7 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Calendar, Clock } from 'lucide-react'
+import { StorageUtils } from '../utils/storage'
 
 const STORAGE_KEYS = {
   CAREER_PLAN: 'career_plan_data'
@@ -15,14 +16,21 @@ const Dashboard = () => {
 
   // Load saved plans on component mount
   useEffect(() => {
-    const savedPlans = localStorage.getItem(STORAGE_KEYS.CAREER_PLAN);
-    if (savedPlans) {
-      try {
-        const parsedPlans = JSON.parse(savedPlans);
-        setPlanHistory(parsedPlans);
-      } catch (e) {
-        console.error('Error loading saved plans:', e);
-      }
+    const savedPlans = StorageUtils.getJSON(STORAGE_KEYS.CAREER_PLAN);
+    
+    if (savedPlans && Array.isArray(savedPlans) && savedPlans.length > 0) {
+      // Validate each plan has required properties
+      const validPlans = savedPlans.filter(plan => {
+        const isValid = plan && 
+                       typeof plan === 'object' && 
+                       plan.id && 
+                       plan.role && 
+                       plan.createdAt;
+        
+        return isValid;
+      });
+      
+      setPlanHistory(validPlans);
     }
   }, []);
 
@@ -107,7 +115,13 @@ const Dashboard = () => {
                         className="flex transition-transform duration-300 ease-in-out gap-3"
                         style={{ transform: `translateX(-${currentSlide * 100}%)` }}
                       >
-                        {planHistory.slice(0, 6).map((plan, index) => (
+                        {planHistory.slice(0, 6).map((plan, index) => {
+                          // Defensive rendering - ensure plan has required properties
+                          if (!plan || !plan.id || !plan.role) {
+                            return null;
+                          }
+                          
+                          return (
                           <div
                             key={plan.id}
                             className="p-3 flex-shrink-0 w-full cursor-pointer group"
@@ -116,21 +130,27 @@ const Dashboard = () => {
                             <div className=" bg-gradient-to-r from-blue-400 to-purple-400 rounded-lg p-3 border border-blue-100 hover:border-blue-300 hover:shadow-md transition-all duration-200">
                               <div className="flex items-center justify-between mb-2">
                                 <h5 className="font-medium text-gray-900 text-sm truncate flex-1 group-hover:text-blue-700">
-                                  {plan.role}
+                                  {plan.role || 'Unknown Role'}
                                 </h5>
                                 <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full ml-2">
-                                  {plan.months}M
+                                  {plan.months || 0}M
                                 </span>
                               </div>
                               <div className="flex items-center gap-2 text-xs text-gray-600">
                                 <Calendar className="w-3 h-3" />
-                                <span>{new Date(plan.createdAt).toLocaleDateString()}</span>
+                                <span>
+                                  {plan.createdAt 
+                                    ? new Date(plan.createdAt).toLocaleDateString() 
+                                    : 'Unknown Date'
+                                  }
+                                </span>
                                 <span className="text-gray-400">•</span>
-                                <span>{plan.weeks} weeks</span>
+                                <span>{plan.weeks || 0} weeks</span>
                               </div>
                             </div>
                           </div>
-                        ))}
+                          );
+                        }).filter(Boolean)}
                       </div>
                     </div>
                     
@@ -144,6 +164,17 @@ const Dashboard = () => {
                         </button>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Show when no plans exist */}
+                {planHistory.length === 0 && (
+                  <div className="mt-6 border-t border-gray-100 pt-4">
+                    <div className="text-center py-4">
+                      <p className="text-sm text-gray-500">
+                        No career plans yet. Create your first plan to see them here!
+                      </p>
+                    </div>
                   </div>
                 )}
                 

@@ -5,6 +5,7 @@ import { useLocation } from "react-router-dom";
 import { generateCareerPlan } from "../services/careerplannerservice";
 import TimelinePlanner from './TimelinePlanner';
 import { Search, Calendar, Sparkles, Lightbulb } from "lucide-react";
+import { StorageUtils } from '../utils/storage';
 import {
   POPULAR_CAREERS,
   TIMELINE_CONFIG,
@@ -34,14 +35,21 @@ const CareerPlanner = () => {
 
   // Load saved plans on component mount
   useEffect(() => {
-    const savedPlans = localStorage.getItem(STORAGE_KEYS.CAREER_PLAN);
-    if (savedPlans) {
-      try {
-        const parsedPlans = JSON.parse(savedPlans);
-        setPlanHistory(parsedPlans);
-      } catch (e) {
-        console.error('Error loading saved plans:', e);
-      }
+    const savedPlans = StorageUtils.getJSON(STORAGE_KEYS.CAREER_PLAN);
+    
+    if (savedPlans && Array.isArray(savedPlans) && savedPlans.length > 0) {
+      // Validate each plan has required properties
+      const validPlans = savedPlans.filter(plan => {
+        const isValid = plan && 
+                       typeof plan === 'object' && 
+                       plan.id && 
+                       plan.role && 
+                       plan.createdAt;
+        
+        return isValid;
+      });
+      
+      setPlanHistory(validPlans);
     }
 
     // Check if a plan was selected from Dashboard
@@ -80,8 +88,8 @@ const CareerPlanner = () => {
       const updatedHistory = [newPlan, ...planHistory].slice(0, APP_CONFIG.MAX_PLAN_HISTORY);
       setPlanHistory(updatedHistory);
       
-      // Store in localStorage
-      localStorage.setItem(STORAGE_KEYS.CAREER_PLAN, JSON.stringify(updatedHistory));
+      // Store in localStorage with error handling
+      StorageUtils.setJSON(STORAGE_KEYS.CAREER_PLAN, updatedHistory);
       
     } catch (err) {
       console.error('Career plan generation error:', err);
@@ -196,7 +204,7 @@ const CareerPlanner = () => {
 
                 <button
                   type="button"
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-medium rounded-lg hover:from-purple-600 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transform hover:scale-105 transition-all duration-200 shadow-lg"
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-black font-medium rounded-lg hover:from-purple-600 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transform hover:scale-105 transition-all duration-200 shadow-lg"
                   onClick={() => setShowSuggestions(!showSuggestions)}
                 >
                   <Lightbulb className="w-4 h-4" />
@@ -219,8 +227,8 @@ const CareerPlanner = () => {
                         type="button"
                         className={`px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 ${
                           activeCategory === category
-                            ? "bg-blue-500 text-white shadow-md"
-                            : "bg-white text-gray-600 hover:bg-blue-50 border border-gray-200"
+                            ? "bg-blue-500 text-black shadow-md"
+                            : "bg-black text-gray-600 hover:bg-blue-50 border border-gray-200"
                         }`}
                         onClick={() => setActiveCategory(category)}
                       >
